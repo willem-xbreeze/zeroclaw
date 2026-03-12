@@ -1927,8 +1927,14 @@ async fn process_channel_message(
         let _ = handle.await;
     }
 
-    // Thread the final reply only if tools were used (multi-message response)
-    if notify_observer_flag.tools_used.load(Ordering::Relaxed) && msg.channel != "cli" {
+    // Thread the final reply only if tools were used (multi-message response).
+    // Only set thread_ts if not already set by the inbound channel handler — e.g.
+    // Slack already populates thread_ts with the bare `ts` value; overwriting it
+    // with msg.id (which has the "slack_CHANNEL_ts" prefix) causes invalid_thread_ts.
+    if notify_observer_flag.tools_used.load(Ordering::Relaxed)
+        && msg.channel != "cli"
+        && msg.thread_ts.is_none()
+    {
         msg.thread_ts = Some(msg.id.clone());
     }
     // Drop the notify sender so the forwarder task finishes
